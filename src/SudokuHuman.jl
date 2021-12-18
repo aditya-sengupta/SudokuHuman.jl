@@ -6,7 +6,7 @@ module SudokuHuman
     using StaticArrays
     using LinearAlgebra
     import Base.show, Base.eachrow, Base.eachcol, Base.copy
-    import Base.Iterators: product
+    import Base.Iterators: product, drop
 
     struct Sudoku
         grid::MMatrix{9,9,Int64}
@@ -15,7 +15,7 @@ module SudokuHuman
     include("puzzles.jl")
 
     export puzzles, Sudoku, make_puzzles
-    export check, possibilities, update, solve, print
+    export check, update!, solve
 
     topleft(i) = 3 * ((i - 1) ÷ 3) + 1
 
@@ -25,18 +25,18 @@ module SudokuHuman
     end
 
     function Base.show(io::IO, s::Sudoku)
-        println("   -----    -----    -----")
+        println("  -----   -----   -----")
         for (i, r) in enumerate(eachrow(s.grid))
-            Base.print(" | ")
+            Base.print("| ")
             for (j, v) in enumerate(r)
                 Base.print((v > 0 ? string(v) : "-") * " ")
                 if j % 3 == 0
-                    Base.print(" | ")
+                    Base.print("| ")
                 end
             end
             println()
             if i % 3 == 0
-                println("   -----    -----    -----")
+                println("  -----   -----   -----")
             end
         end
     end
@@ -101,6 +101,7 @@ module SudokuHuman
             flags[index[1], 1:9, val] .= false # nothing in the row can be 'val'
             flags[1:9, index[2], val] .= false # nothing in the col can be 'val'
             flags[blockof(index...)..., val] .= false # nothing in the block can be 'val'
+            flags[index..., 1:9] .= false # this index can't be anything
             flags[index..., val] = true # except for the value we just found
         end
     end
@@ -133,14 +134,16 @@ module SudokuHuman
                     # "possibilities" is a 9x9: (i, j) is "could position i in the row (resp. column, block) be value j?"
                     # grid_vector is a length-9 vector with the known values
                     vacancies = findall(x -> x == 0, grid_vector) # all the indices we need to fill in
-                    knowns = findall(x -> x == 1, sum(possibilities, dims=1)) # all the indices we know
+                    knownvals = findall(x -> x == 1, vec(sum(possibilities, dims=1))) # all the numbers we know
+                    knowns = hcat([findall(x -> x == 1, possibilities[:,k]) for k in knownvals]...)
+                    println("$desc $num needs $vacancies and we know $knowns")
                     newlocs = intersect(vacancies, knowns) # where's the new information
                     if length(newlocs) > 0
                         for n in newlocs
                             val = findfirst(x -> x == 1, possibilities[n,:])
                             println("$desc $num's only possible location for $val is $n")
                             grid_vector[n] = findfirst(x -> x == 1, possibilities[n,:])
-                            update!(s, flags, indexof(desc, num, n))
+                            update!(solution, flags, indexof(desc, num, n))
                             num_found += 1
                         end
                     end
@@ -148,11 +151,10 @@ module SudokuHuman
             end
 
             if num_found == last_num_found # we didn't find anything new this iteration
-                return solution
+                return solution, flags
             end
             last_num_found = num_found
-            num_found = sum(vec(solution.grid) .> 0)
         end
-        solution
+        solution, flags
     end
 end
