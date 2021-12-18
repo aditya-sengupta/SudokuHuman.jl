@@ -1,4 +1,8 @@
-module MySudoku
+"""
+A Sudoku solver whose steps are transparent to humans!
+"""
+
+module SudokuHuman
     using StaticArrays
     using LinearAlgebra
     import Base.show, Base.eachrow, Base.eachcol, Base.copy

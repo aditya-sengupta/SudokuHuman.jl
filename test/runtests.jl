@@ -1,10 +1,7 @@
-using MySudoku
+using SudokuHuman
 using Test
 
 for puzzle in puzzles
-    sol, success = solve(puzzle)
-    for r in eachrow(sol)
-        println(r)
-    end
-    @test success
+    sol = solve(puzzle)
+    @test check(sol)
 end
